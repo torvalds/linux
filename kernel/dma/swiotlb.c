@@ -1015,6 +1015,17 @@ static int swiotlb_search_pool_area(struct device *dev, struct io_tlb_pool *pool
 	BUG_ON(area_index >= pool->nareas);
 
 	/*
+	 * Historically, swiotlb allocations >= PAGE_SIZE were guaranteed to be
+	 * page-aligned in the absence of any other alignment requirements.
+	 * 'alloc_align_mask' was later introduced to specify the alignment
+	 * explicitly, however this is passed as zero for streaming mappings
+	 * and so we preserve the old behaviour there in case any drivers are
+	 * relying on it.
+	 */
+	if (!alloc_align_mask && !iotlb_align_mask && alloc_size >= PAGE_SIZE)
+		alloc_align_mask = PAGE_SIZE - 1;
+
+	/*
 	 * Ensure that the allocation is at least slot-aligned and update
 	 * 'iotlb_align_mask' to ignore bits that will be preserved when
 	 * offsetting into the allocation.
@@ -1027,13 +1038,6 @@ static int swiotlb_search_pool_area(struct device *dev, struct io_tlb_pool *pool
 	 * unaligned slots once we found an aligned one.
 	 */
 	stride = get_max_slots(max(alloc_align_mask, iotlb_align_mask));
-
-	/*
-	 * For allocations of PAGE_SIZE or larger only look for page aligned
-	 * allocations.
-	 */
-	if (alloc_size >= PAGE_SIZE)
-		stride = umax(stride, PAGE_SHIFT - IO_TLB_SHIFT + 1);
 
 	spin_lock_irqsave(&area->lock, flags);
 	if (unlikely(nslots > pool->area_nslabs - area->used))
