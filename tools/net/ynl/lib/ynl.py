@@ -489,7 +489,7 @@ class YnlFamily(SpecFamily):
         except (ValueError, TypeError) as e:
             if 'enum' not in attr_spec:
                 raise e
-        return self._encode_enum(attr_spec, value);
+        return self._encode_enum(attr_spec, value)
 
     def _add_attr(self, space, name, value, search_attrs):
         try:
