@@ -916,7 +916,7 @@ out:
 	return ret;
 }
 
-static int swim_remove(struct platform_device *dev)
+static void swim_remove(struct platform_device *dev)
 {
 	struct swim_priv *swd = platform_get_drvdata(dev);
 	int drive;
@@ -937,13 +937,11 @@ static int swim_remove(struct platform_device *dev)
 		release_mem_region(res->start, resource_size(res));
 
 	kfree(swd);
-
-	return 0;
 }
 
 static struct platform_driver swim_driver = {
 	.probe  = swim_probe,
-	.remove = swim_remove,
+	.remove_new = swim_remove,
 	.driver   = {
 		.name	= CARDNAME,
 	},
