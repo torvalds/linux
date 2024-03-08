@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CRYPTO_INLINE_CRYPTO_ENGINE_REGS_H_
@@ -135,12 +135,20 @@
 
 #define ICE_LUT_KEYS_CRYPTOCFG_R_16		0x4040
 #define ICE_LUT_KEYS_CRYPTOCFG_R_17		0x4044
-#define ICE_LUT_KEYS_CRYPTOCFG_OFFSET		0x80
-
 
 #define ICE_LUT_KEYS_ICE_SEC_IRQ_STTS		0x6200
 #define ICE_LUT_KEYS_ICE_SEC_IRQ_MASK		0x6204
 #define ICE_LUT_KEYS_ICE_SEC_IRQ_CLR		0x6208
+
+#define ICE_LUT_KEYS_CRYPTOCFG_OFFSET           0x80
+
+/* Non HWKM Targets */
+#define ICE_LUT_KEYS_SW_CRYPTOCFG_R_16		0x2040
+#define ICE_LUT_KEYS_SW_CRYPTOCFG_R_17		0x2044
+
+#define ICE_LUT_KEYS_SW_ICE_SEC_IRQ_STTS	0x3100
+#define ICE_LUT_KEYS_SW_ICE_SEC_IRQ_MASK	0x3104
+#define ICE_LUT_KEYS_SW_ICE_SEC_IRQ_CLR		0x3108
 
 #define ICE_STREAM1_PARTIALLY_SET_KEY_USED	(1L << 0)
 #define ICE_STREAM2_PARTIALLY_SET_KEY_USED	(1L << 1)
