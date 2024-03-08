@@ -3063,15 +3063,10 @@ static int amt_dev_init(struct net_device *dev)
 	int err;
 
 	amt->dev = dev;
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
 
 	err = gro_cells_init(&amt->gro_cells, dev);
-	if (err) {
-		free_percpu(dev->tstats);
+	if (err)
 		return err;
-	}
 
 	return 0;
 }
@@ -3081,7 +3076,6 @@ static void amt_dev_uninit(struct net_device *dev)
 	struct amt_dev *amt = netdev_priv(dev);
 
 	gro_cells_destroy(&amt->gro_cells);
-	free_percpu(dev->tstats);
 }
 
 static const struct net_device_ops amt_netdev_ops = {
@@ -3111,6 +3105,7 @@ static void amt_link_setup(struct net_device *dev)
 	dev->hw_features	|= NETIF_F_SG | NETIF_F_HW_CSUM;
 	dev->hw_features	|= NETIF_F_FRAGLIST | NETIF_F_RXCSUM;
 	dev->hw_features	|= NETIF_F_GSO_SOFTWARE;
+	dev->pcpu_stat_type	= NETDEV_PCPU_STAT_TSTATS;
 	eth_hw_addr_random(dev);
 	eth_zero_addr(dev->broadcast);
 	ether_setup(dev);
