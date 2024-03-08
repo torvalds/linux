@@ -127,6 +127,7 @@ def define_niobe():
         "drivers/soc/qcom/dcvs/qcom-pmu-lib.ko",
         "drivers/soc/qcom/dcvs/qcom_scmi_client.ko",
         "drivers/soc/qcom/debug_symbol.ko",
+        "drivers/soc/qcom/fsa4480-i2c.ko",
         "drivers/soc/qcom/gic_intr_routing.ko",
         "drivers/soc/qcom/llcc-qcom.ko",
         "drivers/soc/qcom/mdt_loader.ko",
