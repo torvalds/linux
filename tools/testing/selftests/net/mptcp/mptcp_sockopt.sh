@@ -105,7 +105,7 @@ check_mark()
 		if [ $v -ne 0 ]; then
 			mptcp_lib_pr_fail "got $tables $values in ns $ns," \
 					  "not 0 - not all expected packets marked"
-			ret=1
+			ret=${KSFT_FAIL}
 			return 1
 		fi
 	done
@@ -178,7 +178,7 @@ do_transfer()
 
 		mptcp_lib_result_fail "transfer ${ip}"
 
-		ret=1
+		ret=${KSFT_FAIL}
 		return 1
 	fi
 	if ! mptcp_lib_check_transfer $cin $sout "file received by server"; then

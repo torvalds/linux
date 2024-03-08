@@ -89,7 +89,7 @@ test_fail()
 	then
 		mptcp_lib_pr_fail "${@}"
 	fi
-	ret=1
+	ret=${KSFT_FAIL}
 	mptcp_lib_result_fail "${test_name}"
 }
 
@@ -209,7 +209,7 @@ make_connection()
 	else
 		test_fail "Expected tokens (c:${client_token} - s:${server_token}) and server (c:${client_serverside} - s:${server_serverside})"
 		mptcp_lib_result_print_all_tap
-		exit 1
+		exit ${KSFT_FAIL}
 	fi
 
 	if [ "$is_v6" = "v6" ]
