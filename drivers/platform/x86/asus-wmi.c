@@ -481,7 +481,17 @@ static int asus_wmi_evaluate_method_agfn(const struct acpi_buffer args)
 
 static int asus_wmi_get_devstate(struct asus_wmi *asus, u32 dev_id, u32 *retval)
 {
-	return asus_wmi_evaluate_method(asus->dsts_id, dev_id, 0, retval);
+	int err;
+
+	err = asus_wmi_evaluate_method(asus->dsts_id, dev_id, 0, retval);
+
+	if (err)
+		return err;
+
+	if (*retval == ~0)
+		return -ENODEV;
+
+	return 0;
 }
 
 static int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param,
