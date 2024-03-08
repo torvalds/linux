@@ -6709,6 +6709,9 @@ static int hci_acl_create_conn_sync(struct hci_dev *hdev, void *data)
 	struct hci_cp_create_conn cp;
 	int err;
 
+	if (!hci_conn_valid(hdev, conn))
+		return -ECANCELED;
+
 	/* Many controllers disallow HCI Create Connection while it is doing
 	 * HCI Inquiry. So we cancel the Inquiry first before issuing HCI Create
 	 * Connection. This may cause the MGMT discovering state to become false
