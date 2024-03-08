@@ -12438,7 +12438,7 @@ static __latent_entropy void sched_balance_softirq(struct softirq_action *h)
 /*
  * Trigger the SCHED_SOFTIRQ if it is time to do periodic load balancing.
  */
-void trigger_load_balance(struct rq *rq)
+void sched_balance_trigger(struct rq *rq)
 {
 	/*
 	 * Don't need to rebalance while attached to NULL domain or

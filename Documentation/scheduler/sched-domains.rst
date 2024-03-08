@@ -31,7 +31,7 @@ is treated as one entity. The load of a group is defined as the sum of the
 load of each of its member CPUs, and only when the load of a group becomes
 out of balance are tasks moved between groups.
 
-In kernel/sched/core.c, trigger_load_balance() is run periodically on each CPU
+In kernel/sched/core.c, sched_balance_trigger() is run periodically on each CPU
 through sched_tick(). It raises a softirq after the next regularly scheduled
 rebalancing event for the current runqueue has arrived. The actual load
 balancing workhorse, sched_balance_softirq()->rebalance_domains(), is then run
