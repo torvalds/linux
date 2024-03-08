@@ -198,12 +198,12 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 		 * coordinates in order to allow calculation of access class
 		 * 0 and 1 for region later.
 		 */
-		cxl_coordinates_combine(&coord[ACCESS_COORDINATE_LOCAL],
-					&coord[ACCESS_COORDINATE_LOCAL],
+		cxl_coordinates_combine(&coord[ACCESS_COORDINATE_CPU],
+					&coord[ACCESS_COORDINATE_CPU],
 					&dent->coord);
 		dent->entries = 1;
 		rc = cxl_root->ops->qos_class(cxl_root,
-					      &coord[ACCESS_COORDINATE_LOCAL],
+					      &coord[ACCESS_COORDINATE_CPU],
 					      1, &qos_class);
 		if (rc != 1)
 			continue;
