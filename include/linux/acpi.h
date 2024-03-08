@@ -1559,4 +1559,13 @@ static inline int hmat_update_target_coordinates(int nid,
 }
 #endif
 
+#ifdef CONFIG_ACPI_NUMA
+bool acpi_node_backed_by_real_pxm(int nid);
+#else
+static inline bool acpi_node_backed_by_real_pxm(int nid)
+{
+	return false;
+}
+#endif
+
 #endif	/*_LINUX_ACPI_H*/
