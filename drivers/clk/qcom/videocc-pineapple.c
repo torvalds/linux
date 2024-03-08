@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -601,6 +601,7 @@ static const struct qcom_reset_map video_cc_pineapple_resets[] = {
 	[VIDEO_CC_MVS1C_CLK_ARES] = { 0x8090, 2 },
 	[VCODEC_VIDEO_CC_MVS1C_BCR] = { 0x8074 },
 	[VIDEO_CC_XO_CLK_ARES] = { 0x8124, 2 },
+	[VIDEO_CC_MVS0_CLK_ARES] = { 0x80b8, 2 },
 };
 
 static const struct regmap_config video_cc_pineapple_regmap_config = {
