@@ -156,6 +156,7 @@ try_next_key:
 	return afs_put_operation(op);
 }
 
+#if 0 // TODO: Remove
 static void afs_upload_to_server(struct netfs_io_subrequest *subreq)
 {
 	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
@@ -193,6 +194,7 @@ void afs_create_write_requests(struct netfs_io_request *wreq, loff_t start, size
 	if (subreq)
 		netfs_queue_write_request(subreq);
 }
+#endif
 
 /*
  * Writeback calls this when it finds a folio that needs uploading.  This isn't

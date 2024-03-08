@@ -709,7 +709,7 @@ void netfs_wake_write_collector(struct netfs_io_request *wreq, bool was_async)
 }
 
 /**
- * new_netfs_write_subrequest_terminated - Note the termination of a write operation.
+ * netfs_write_subrequest_terminated - Note the termination of a write operation.
  * @_op: The I/O request that has terminated.
  * @transferred_or_error: The amount of data transferred or an error code.
  * @was_async: The termination was asynchronous
@@ -731,8 +731,8 @@ void netfs_wake_write_collector(struct netfs_io_request *wreq, bool was_async)
  * Note that %_op is a void* so that the function can be passed to
  * kiocb::term_func without the need for a casting wrapper.
  */
-void new_netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
-					   bool was_async)
+void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
+				       bool was_async)
 {
 	struct netfs_io_subrequest *subreq = _op;
 	struct netfs_io_request *wreq = subreq->rreq;
@@ -800,4 +800,4 @@ void new_netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_err
 
 	netfs_put_subrequest(subreq, was_async, netfs_sreq_trace_put_terminated);
 }
-EXPORT_SYMBOL(new_netfs_write_subrequest_terminated);
+EXPORT_SYMBOL(netfs_write_subrequest_terminated);

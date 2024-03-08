@@ -60,6 +60,7 @@ static void v9fs_issue_write(struct netfs_io_subrequest *subreq)
 	netfs_write_subrequest_terminated(subreq, len ?: err, false);
 }
 
+#if 0 // TODO: Remove
 static void v9fs_upload_to_server(struct netfs_io_subrequest *subreq)
 {
 	struct p9_fid *fid = subreq->rreq->netfs_priv;
@@ -91,6 +92,7 @@ static void v9fs_create_write_requests(struct netfs_io_request *wreq, loff_t sta
 	if (subreq)
 		netfs_queue_write_request(subreq);
 }
+#endif
 
 /**
  * v9fs_issue_read - Issue a read from 9P
@@ -121,18 +123,15 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
 	struct p9_fid *fid;
 	bool writing = (rreq->origin == NETFS_READ_FOR_WRITE ||
-			rreq->origin == NETFS_WRITEBACK ||
 			rreq->origin == NETFS_WRITETHROUGH ||
 			rreq->origin == NETFS_UNBUFFERED_WRITE ||
 			rreq->origin == NETFS_DIO_WRITE);
 
-#if 0 // TODO: Cut over
 	if (rreq->origin == NETFS_WRITEBACK)
 		return 0; /* We don't get the write handle until we find we
 			   * have actually dirty data and not just
 			   * copy-to-cache data.
 			   */
-#endif
 
 	if (file) {
 		fid = file->private_data;
@@ -179,7 +178,6 @@ const struct netfs_request_ops v9fs_req_ops = {
 	.issue_read		= v9fs_issue_read,
 	.begin_writeback	= v9fs_begin_writeback,
 	.issue_write		= v9fs_issue_write,
-	.create_write_requests	= v9fs_create_write_requests,
 };
 
 const struct address_space_operations v9fs_addr_operations = {

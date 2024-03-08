@@ -26,8 +26,6 @@ enum netfs_how_to_modify {
 	NETFS_FLUSH_CONTENT,		/* Flush incompatible content. */
 };
 
-static void netfs_cleanup_buffered_write(struct netfs_io_request *wreq);
-
 static void netfs_set_group(struct folio *folio, struct netfs_group *netfs_group)
 {
 	void *priv = folio_get_private(folio);
@@ -180,7 +178,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 	};
 	struct netfs_io_request *wreq = NULL;
 	struct netfs_folio *finfo;
-	struct folio *folio;
+	struct folio *folio, *writethrough = NULL;
 	enum netfs_how_to_modify howto;
 	enum netfs_folio_trace trace;
 	unsigned int bdp_flags = (iocb->ki_flags & IOCB_SYNC) ? 0: BDP_ASYNC;
@@ -209,7 +207,6 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 		}
 		if (!is_sync_kiocb(iocb))
 			wreq->iocb = iocb;
-		wreq->cleanup = netfs_cleanup_buffered_write;
 		netfs_stat(&netfs_n_wh_writethrough);
 	} else {
 		netfs_stat(&netfs_n_wh_buffered_write);
@@ -252,6 +249,16 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 		flen = folio_size(folio);
 		offset = pos & (flen - 1);
 		part = min_t(size_t, flen - offset, part);
+
+		/* Wait for writeback to complete.  The writeback engine owns
+		 * the info in folio->private and may change it until it
+		 * removes the WB mark.
+		 */
+		if (folio_get_private(folio) &&
+		    folio_wait_writeback_killable(folio)) {
+			ret = written ? -EINTR : -ERESTARTSYS;
+			goto error_folio_unlock;
+		}
 
 		if (signal_pending(current)) {
 			ret = written ? -EINTR : -ERESTARTSYS;
@@ -327,6 +334,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 				maybe_trouble = true;
 				iov_iter_revert(iter, copied);
 				copied = 0;
+				folio_unlock(folio);
 				goto retry;
 			}
 			netfs_set_group(folio, netfs_group);
@@ -382,23 +390,14 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 
 		if (likely(!wreq)) {
 			folio_mark_dirty(folio);
+			folio_unlock(folio);
 		} else {
-			if (folio_test_dirty(folio))
-				/* Sigh.  mmap. */
-				folio_clear_dirty_for_io(folio);
-			/* We make multiple writes to the folio... */
-			if (!folio_test_writeback(folio)) {
-				folio_start_writeback(folio);
-				if (wreq->iter.count == 0)
-					trace_netfs_folio(folio, netfs_folio_trace_wthru);
-				else
-					trace_netfs_folio(folio, netfs_folio_trace_wthru_plus);
-			}
-			netfs_advance_writethrough(wreq, copied,
-						   offset + copied == flen);
+			netfs_advance_writethrough(wreq, &wbc, folio, copied,
+						   offset + copied == flen,
+						   &writethrough);
+			/* Folio unlocked */
 		}
 	retry:
-		folio_unlock(folio);
 		folio_put(folio);
 		folio = NULL;
 
@@ -407,7 +406,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 
 out:
 	if (unlikely(wreq)) {
-		ret2 = netfs_end_writethrough(wreq, iocb);
+		ret2 = netfs_end_writethrough(wreq, &wbc, writethrough);
 		wbc_detach_inode(&wbc);
 		if (ret2 == -EIOCBQUEUED)
 			return ret2;
@@ -529,11 +528,13 @@ vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_gr
 
 	sb_start_pagefault(inode->i_sb);
 
-	if (folio_wait_writeback_killable(folio))
-		goto out;
-
 	if (folio_lock_killable(folio) < 0)
 		goto out;
+
+	if (folio_wait_writeback_killable(folio)) {
+		ret = VM_FAULT_LOCKED;
+		goto out;
+	}
 
 	/* Can we see a streaming write here? */
 	if (WARN_ON(!folio_test_uptodate(folio))) {
@@ -573,6 +574,7 @@ out:
 }
 EXPORT_SYMBOL(netfs_page_mkwrite);
 
+#if 0 // TODO: Remove
 /*
  * Kill all the pages in the given range
  */
@@ -1199,3 +1201,4 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(netfs_writepages);
+#endif

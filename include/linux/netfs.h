@@ -303,8 +303,6 @@ struct netfs_request_ops {
 	void (*update_i_size)(struct inode *inode, loff_t i_size);
 
 	/* Write request handling */
-	void (*create_write_requests)(struct netfs_io_request *wreq,
-				      loff_t start, size_t len);
 	void (*begin_writeback)(struct netfs_io_request *wreq);
 	void (*prepare_write)(struct netfs_io_subrequest *subreq);
 	void (*issue_write)(struct netfs_io_subrequest *subreq);
@@ -409,8 +407,6 @@ int netfs_write_begin(struct netfs_inode *, struct file *,
 		      struct folio **, void **fsdata);
 int netfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
-int new_netfs_writepages(struct address_space *mapping,
-			struct writeback_control *wbc);
 bool netfs_dirty_folio(struct address_space *mapping, struct folio *folio);
 int netfs_unpin_writeback(struct inode *inode, struct writeback_control *wbc);
 void netfs_clear_inode_writeback(struct inode *inode, const void *aux);
@@ -431,14 +427,9 @@ ssize_t netfs_extract_user_iter(struct iov_iter *orig, size_t orig_len,
 				iov_iter_extraction_t extraction_flags);
 size_t netfs_limit_iter(const struct iov_iter *iter, size_t start_offset,
 			size_t max_size, size_t max_segs);
-struct netfs_io_subrequest *netfs_create_write_request(
-	struct netfs_io_request *wreq, enum netfs_io_source dest,
-	loff_t start, size_t len, work_func_t worker);
 void netfs_prepare_write_failed(struct netfs_io_subrequest *subreq);
 void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
 				       bool was_async);
-void new_netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
-					   bool was_async);
 void netfs_queue_write_request(struct netfs_io_subrequest *subreq);
 
 int netfs_start_io_read(struct inode *inode);

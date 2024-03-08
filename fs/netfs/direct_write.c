@@ -34,6 +34,7 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 	unsigned long long start = iocb->ki_pos;
 	unsigned long long end = start + iov_iter_count(iter);
 	ssize_t ret, n;
+	size_t len = iov_iter_count(iter);
 	bool async = !is_sync_kiocb(iocb);
 
 	_enter("");
@@ -46,12 +47,16 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 
 	_debug("uw %llx-%llx", start, end);
 
-	wreq = netfs_alloc_request(iocb->ki_filp->f_mapping, iocb->ki_filp,
-				   start, end - start,
-				   iocb->ki_flags & IOCB_DIRECT ?
-				   NETFS_DIO_WRITE : NETFS_UNBUFFERED_WRITE);
+	wreq = netfs_create_write_req(iocb->ki_filp->f_mapping, iocb->ki_filp, start,
+				      iocb->ki_flags & IOCB_DIRECT ?
+				      NETFS_DIO_WRITE : NETFS_UNBUFFERED_WRITE);
 	if (IS_ERR(wreq))
 		return PTR_ERR(wreq);
+
+	wreq->io_streams[0].avail = true;
+	trace_netfs_write(wreq, (iocb->ki_flags & IOCB_DIRECT ?
+				 netfs_write_trace_dio_write :
+				 netfs_write_trace_unbuffered_write));
 
 	{
 		/* If this is an async op and we're not using a bounce buffer,
@@ -63,7 +68,7 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 		 * request.
 		 */
 		if (async || user_backed_iter(iter)) {
-			n = netfs_extract_user_iter(iter, wreq->len, &wreq->iter, 0);
+			n = netfs_extract_user_iter(iter, len, &wreq->iter, 0);
 			if (n < 0) {
 				ret = n;
 				goto out;
@@ -71,13 +76,14 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 			wreq->direct_bv = (struct bio_vec *)wreq->iter.bvec;
 			wreq->direct_bv_count = n;
 			wreq->direct_bv_unpin = iov_iter_extract_will_pin(iter);
-			wreq->len = iov_iter_count(&wreq->iter);
 		} else {
 			wreq->iter = *iter;
 		}
 
 		wreq->io_iter = wreq->iter;
 	}
+
+	__set_bit(NETFS_RREQ_USE_IO_ITER, &wreq->flags);
 
 	/* Copy the data into the bounce buffer and encrypt it. */
 	// TODO
@@ -87,10 +93,7 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 	if (async)
 		wreq->iocb = iocb;
 	wreq->cleanup = netfs_cleanup_dio_write;
-	ret = netfs_begin_write(wreq, is_sync_kiocb(iocb),
-				iocb->ki_flags & IOCB_DIRECT ?
-				netfs_write_trace_dio_write :
-				netfs_write_trace_unbuffered_write);
+	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), iov_iter_count(&wreq->io_iter));
 	if (ret < 0) {
 		_debug("begin = %zd", ret);
 		goto out;
@@ -100,9 +103,8 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 		trace_netfs_rreq(wreq, netfs_rreq_trace_wait_ip);
 		wait_on_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS,
 			    TASK_UNINTERRUPTIBLE);
-
+		smp_rmb(); /* Read error/transferred after RIP flag */
 		ret = wreq->error;
-		_debug("waited = %zd", ret);
 		if (ret == 0) {
 			ret = wreq->transferred;
 			iocb->ki_pos += ret;

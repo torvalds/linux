@@ -11,7 +11,6 @@ netfs-y := \
 	main.o \
 	misc.o \
 	objects.o \
-	output.o \
 	write_collect.o \
 	write_issue.o
 

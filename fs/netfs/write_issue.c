@@ -494,8 +494,8 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 /*
  * Write some of the pending data back to the server
  */
-int new_netfs_writepages(struct address_space *mapping,
-			 struct writeback_control *wbc)
+int netfs_writepages(struct address_space *mapping,
+		     struct writeback_control *wbc)
 {
 	struct netfs_inode *ictx = netfs_inode(mapping->host);
 	struct netfs_io_request *wreq = NULL;
@@ -556,12 +556,12 @@ out:
 	_leave(" = %d", error);
 	return error;
 }
-EXPORT_SYMBOL(new_netfs_writepages);
+EXPORT_SYMBOL(netfs_writepages);
 
 /*
  * Begin a write operation for writing through the pagecache.
  */
-struct netfs_io_request *new_netfs_begin_writethrough(struct kiocb *iocb, size_t len)
+struct netfs_io_request *netfs_begin_writethrough(struct kiocb *iocb, size_t len)
 {
 	struct netfs_io_request *wreq = NULL;
 	struct netfs_inode *ictx = netfs_inode(file_inode(iocb->ki_filp));
@@ -586,9 +586,9 @@ struct netfs_io_request *new_netfs_begin_writethrough(struct kiocb *iocb, size_t
  * to the request.  If we've added more than wsize then we need to create a new
  * subrequest.
  */
-int new_netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
-				   struct folio *folio, size_t copied, bool to_page_end,
-				   struct folio **writethrough_cache)
+int netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
+			       struct folio *folio, size_t copied, bool to_page_end,
+			       struct folio **writethrough_cache)
 {
 	_enter("R=%x ic=%zu ws=%u cp=%zu tp=%u",
 	       wreq->debug_id, wreq->iter.count, wreq->wsize, copied, to_page_end);
@@ -618,8 +618,8 @@ int new_netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeba
 /*
  * End a write operation used when writing through the pagecache.
  */
-int new_netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
-			       struct folio *writethrough_cache)
+int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
+			   struct folio *writethrough_cache)
 {
 	struct netfs_inode *ictx = netfs_inode(wreq->inode);
 	int ret;

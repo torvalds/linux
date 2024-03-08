@@ -93,15 +93,6 @@ static inline void netfs_see_request(struct netfs_io_request *rreq,
 }
 
 /*
- * output.c
- */
-int netfs_begin_write(struct netfs_io_request *wreq, bool may_wait,
-		      enum netfs_write_trace what);
-struct netfs_io_request *netfs_begin_writethrough(struct kiocb *iocb, size_t len);
-int netfs_advance_writethrough(struct netfs_io_request *wreq, size_t copied, bool to_page_end);
-int netfs_end_writethrough(struct netfs_io_request *wreq, struct kiocb *iocb);
-
-/*
  * stats.c
  */
 #ifdef CONFIG_NETFS_STATS
@@ -172,12 +163,12 @@ void netfs_reissue_write(struct netfs_io_stream *stream,
 int netfs_advance_write(struct netfs_io_request *wreq,
 			struct netfs_io_stream *stream,
 			loff_t start, size_t len, bool to_eof);
-struct netfs_io_request *new_netfs_begin_writethrough(struct kiocb *iocb, size_t len);
-int new_netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
-				   struct folio *folio, size_t copied, bool to_page_end,
-				   struct folio **writethrough_cache);
-int new_netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
-			       struct folio *writethrough_cache);
+struct netfs_io_request *netfs_begin_writethrough(struct kiocb *iocb, size_t len);
+int netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
+			       struct folio *folio, size_t copied, bool to_page_end,
+			       struct folio **writethrough_cache);
+int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
+			   struct folio *writethrough_cache);
 int netfs_unbuffered_write(struct netfs_io_request *wreq, bool may_wait, size_t len);
 
 /*
