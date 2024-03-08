@@ -427,7 +427,7 @@ out_err2:
 	return ret;
 }
 
-static int uio_fsl_elbc_gpcm_remove(struct platform_device *pdev)
+static void uio_fsl_elbc_gpcm_remove(struct platform_device *pdev)
 {
 	struct uio_info *info = platform_get_drvdata(pdev);
 	struct fsl_elbc_gpcm *priv = info->priv;
@@ -437,8 +437,6 @@ static int uio_fsl_elbc_gpcm_remove(struct platform_device *pdev)
 	if (priv->shutdown)
 		priv->shutdown(info, false);
 	iounmap(info->mem[0].internal_addr);
-
-	return 0;
 
 }
 
@@ -455,7 +453,7 @@ static struct platform_driver uio_fsl_elbc_gpcm_driver = {
 		.dev_groups = uio_fsl_elbc_gpcm_groups,
 	},
 	.probe = uio_fsl_elbc_gpcm_probe,
-	.remove = uio_fsl_elbc_gpcm_remove,
+	.remove_new = uio_fsl_elbc_gpcm_remove,
 };
 module_platform_driver(uio_fsl_elbc_gpcm_driver);
 
