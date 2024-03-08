@@ -31,6 +31,8 @@
 #include "dml_assert.h"
 
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
+#define TB_BORROWED_MAX 400
+
 // ---------------------------
 //  Declaration Begins
 // ---------------------------
