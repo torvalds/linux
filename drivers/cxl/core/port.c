@@ -2097,6 +2097,38 @@ bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd)
 EXPORT_SYMBOL_NS_GPL(schedule_cxl_memdev_detach, CXL);
 
 /**
+ * cxl_hb_get_perf_coordinates - Retrieve performance numbers between initiator
+ *				 and host bridge
+ *
+ * @port: endpoint cxl_port
+ * @coord: output access coordinates
+ *
+ * Return: errno on failure, 0 on success.
+ */
+int cxl_hb_get_perf_coordinates(struct cxl_port *port,
+				struct access_coordinate *coord)
+{
+	struct cxl_port *iter = port;
+	struct cxl_dport *dport;
+
+	if (!is_cxl_endpoint(port))
+		return -EINVAL;
+
+	dport = iter->parent_dport;
+	while (iter && !is_cxl_root(to_cxl_port(iter->dev.parent))) {
+		iter = to_cxl_port(iter->dev.parent);
+		dport = iter->parent_dport;
+	}
+
+	coord[ACCESS_COORDINATE_LOCAL] =
+		dport->hb_coord[ACCESS_COORDINATE_LOCAL];
+	coord[ACCESS_COORDINATE_CPU] =
+		dport->hb_coord[ACCESS_COORDINATE_CPU];
+
+	return 0;
+}
+
+/**
  * cxl_endpoint_get_perf_coordinates - Retrieve performance numbers stored in dports
  *				   of CXL path
  * @port: endpoint cxl_port
@@ -2136,9 +2168,6 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 		iter = to_cxl_port(iter->dev.parent);
 		dport = iter->parent_dport;
 	}
-
-	/* Augment with the generic port (host bridge) perf data */
-	cxl_coordinates_combine(&c, &c, &dport->hb_coord[ACCESS_COORDINATE_LOCAL]);
 
 	/* Get the calculated PCI paths bandwidth */
 	pdev = to_pci_dev(port->uport_dev->parent);
