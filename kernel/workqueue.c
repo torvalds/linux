@@ -3651,7 +3651,7 @@ void workqueue_softirq_dead(unsigned int cpu)
 		if (!need_more_worker(pool))
 			continue;
 
-		INIT_WORK(&dead_work.work, drain_dead_softirq_workfn);
+		INIT_WORK_ONSTACK(&dead_work.work, drain_dead_softirq_workfn);
 		dead_work.pool = pool;
 		init_completion(&dead_work.done);
 
