@@ -2,6 +2,11 @@
 Scheduler Statistics
 ====================
 
+Version 16 of schedstats changed the order of definitions within
+'enum cpu_idle_type', which changed the order of [CPU_MAX_IDLE_TYPES]
+columns in show_schedstat(). In particular the position of CPU_IDLE
+and __CPU_NOT_IDLE changed places. The size of the array is unchanged.
+
 Version 15 of schedstats dropped counters for some sched_yield:
 yld_exp_empty, yld_act_empty and yld_both_empty. Otherwise, it is
 identical to version 14.
