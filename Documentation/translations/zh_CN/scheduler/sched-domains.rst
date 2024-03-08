@@ -34,12 +34,12 @@ CPU共享。任意两个组的CPU掩码的交集不一定为空，如果是这�
 调度域中的负载均衡发生在调度组中。也就是说，每个组被视为一个实体。组的负载被定义为它
 管辖的每个CPU的负载之和。仅当组的负载不均衡后，任务才在组之间发生迁移。
 
-在kernel/sched/core.c中，trigger_load_balance()在每个CPU上通过scheduler_tick()
+在kernel/sched/core.c中，trigger_load_balance()在每个CPU上通过sched_tick()
 周期执行。在当前运行队列下一个定期调度再平衡事件到达后，它引发一个软中断。负载均衡真正
 的工作由sched_balance_softirq()->rebalance_domains()完成，在软中断上下文中执行
 （SCHED_SOFTIRQ）。
 
-后一个函数有两个入参：当前CPU的运行队列、它在scheduler_tick()调用时是否空闲。函数会从
+后一个函数有两个入参：当前CPU的运行队列、它在sched_tick()调用时是否空闲。函数会从
 当前CPU所在的基调度域开始迭代执行，并沿着parent指针链向上进入更高层级的调度域。在迭代
 过程中，函数会检查当前调度域是否已经耗尽了再平衡的时间间隔，如果是，它在该调度域运行
 load_balance()。接下来它检查父调度域（如果存在），再后来父调度域的父调度域，以此类推。

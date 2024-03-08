@@ -32,13 +32,13 @@ load of each of its member CPUs, and only when the load of a group becomes
 out of balance are tasks moved between groups.
 
 In kernel/sched/core.c, trigger_load_balance() is run periodically on each CPU
-through scheduler_tick(). It raises a softirq after the next regularly scheduled
+through sched_tick(). It raises a softirq after the next regularly scheduled
 rebalancing event for the current runqueue has arrived. The actual load
 balancing workhorse, sched_balance_softirq()->rebalance_domains(), is then run
 in softirq context (SCHED_SOFTIRQ).
 
 The latter function takes two arguments: the runqueue of current CPU and whether
-the CPU was idle at the time the scheduler_tick() happened and iterates over all
+the CPU was idle at the time the sched_tick() happened and iterates over all
 sched domains our CPU is on, starting from its base domain and going up the ->parent
 chain. While doing that, it checks to see if the current domain has exhausted its
 rebalance interval. If so, it runs load_balance() on that domain. It then checks

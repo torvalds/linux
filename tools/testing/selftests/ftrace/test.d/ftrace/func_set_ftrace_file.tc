@@ -19,7 +19,7 @@ fail() { # mesg
 
 FILTER=set_ftrace_filter
 FUNC1="schedule"
-FUNC2="scheduler_tick"
+FUNC2="sched_tick"
 
 ALL_FUNCS="#### all functions enabled ####"
 
