@@ -32,7 +32,7 @@ struct intel_hdcp_gsc_message {
 
 bool intel_hdcp_gsc_cs_required(struct xe_device *xe)
 {
-	return true;
+	return DISPLAY_VER(xe) >= 14;
 }
 
 bool intel_hdcp_gsc_check_status(struct xe_device *xe)
