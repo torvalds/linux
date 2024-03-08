@@ -870,13 +870,8 @@ static int tas2781_runtime_resume(struct device *dev)
 static int tas2781_system_suspend(struct device *dev)
 {
 	struct tas2781_hda *tas_hda = dev_get_drvdata(dev);
-	int ret;
 
 	dev_dbg(tas_hda->priv->dev, "System Suspend\n");
-
-	ret = pm_runtime_force_suspend(dev);
-	if (ret)
-		return ret;
 
 	mutex_lock(&tas_hda->priv->codec_lock);
 
@@ -895,13 +890,9 @@ static int tas2781_system_suspend(struct device *dev)
 static int tas2781_system_resume(struct device *dev)
 {
 	struct tas2781_hda *tas_hda = dev_get_drvdata(dev);
-	int i, ret;
+	int i;
 
 	dev_dbg(tas_hda->priv->dev, "System Resume\n");
-
-	ret = pm_runtime_force_resume(dev);
-	if (ret)
-		return ret;
 
 	mutex_lock(&tas_hda->priv->codec_lock);
 
