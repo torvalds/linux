@@ -185,15 +185,7 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 	xa_for_each(dsmas_xa, index, dent) {
 		int qos_class;
 
-		dent->coord.read_latency = dent->coord.read_latency +
-					   c.read_latency;
-		dent->coord.write_latency = dent->coord.write_latency +
-					    c.write_latency;
-		dent->coord.read_bandwidth = min_t(int, c.read_bandwidth,
-						   dent->coord.read_bandwidth);
-		dent->coord.write_bandwidth = min_t(int, c.write_bandwidth,
-						    dent->coord.write_bandwidth);
-
+		cxl_coordinates_combine(&dent->coord, &dent->coord, &c);
 		dent->entries = 1;
 		rc = cxl_root->ops->qos_class(cxl_root, &dent->coord, 1,
 					      &qos_class);
@@ -483,5 +475,27 @@ void cxl_switch_parse_cdat(struct cxl_port *port)
 		dev_dbg(&port->dev, "Failed to parse SSLBIS: %d\n", rc);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_switch_parse_cdat, CXL);
+
+/**
+ * cxl_coordinates_combine - Combine the two input coordinates
+ *
+ * @out: Output coordinate of c1 and c2 combined
+ * @c1: input coordinates
+ * @c2: input coordinates
+ */
+void cxl_coordinates_combine(struct access_coordinate *out,
+			     struct access_coordinate *c1,
+			     struct access_coordinate *c2)
+{
+		if (c1->write_bandwidth && c2->write_bandwidth)
+			out->write_bandwidth = min(c1->write_bandwidth,
+						   c2->write_bandwidth);
+		out->write_latency = c1->write_latency + c2->write_latency;
+
+		if (c1->read_bandwidth && c2->read_bandwidth)
+			out->read_bandwidth = min(c1->read_bandwidth,
+						  c2->read_bandwidth);
+		out->read_latency = c1->read_latency + c2->read_latency;
+}
 
 MODULE_IMPORT_NS(CXL);
