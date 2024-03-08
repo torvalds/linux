@@ -240,7 +240,7 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 			       rxrpc_notify_end_tx_t notify_end_tx)
 {
 	rxrpc_seq_t seq = txb->seq;
-	bool last = test_bit(RXRPC_TXBUF_LAST, &txb->flags), poke;
+	bool poke, last = txb->flags & RXRPC_LAST_PACKET;
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_data);
 
@@ -336,7 +336,7 @@ reload:
 
 	do {
 		if (!txb) {
-			size_t remain, bufsize, chunk, offset;
+			size_t remain;
 
 			_debug("alloc");
 
@@ -348,23 +348,11 @@ reload:
 			 * region (enc blocksize), but the trailer is not.
 			 */
 			remain = more ? INT_MAX : msg_data_left(msg);
-			ret = call->conn->security->how_much_data(call, remain,
-								  &bufsize, &chunk, &offset);
-			if (ret < 0)
+			txb = call->conn->security->alloc_txbuf(call, remain, sk->sk_allocation);
+			if (IS_ERR(txb)) {
+				ret = PTR_ERR(txb);
 				goto maybe_error;
-
-			_debug("SIZE: %zu/%zu @%zu", chunk, bufsize, offset);
-
-			/* create a buffer that we can retain until it's ACK'd */
-			ret = -ENOMEM;
-			txb = rxrpc_alloc_txbuf(call, RXRPC_PACKET_TYPE_DATA,
-						GFP_KERNEL);
-			if (!txb)
-				goto maybe_error;
-
-			txb->offset = offset;
-			txb->space -= offset;
-			txb->space = min_t(size_t, chunk, txb->space);
+			}
 		}
 
 		_debug("append");
@@ -374,8 +362,8 @@ reload:
 			size_t copy = min_t(size_t, txb->space, msg_data_left(msg));
 
 			_debug("add %zu", copy);
-			if (!copy_from_iter_full(txb->data + txb->offset, copy,
-						 &msg->msg_iter))
+			if (!copy_from_iter_full(txb->kvec[0].iov_base + txb->offset,
+						 copy, &msg->msg_iter))
 				goto efault;
 			_debug("added");
 			txb->space -= copy;
@@ -394,18 +382,18 @@ reload:
 		/* add the packet to the send queue if it's now full */
 		if (!txb->space ||
 		    (msg_data_left(msg) == 0 && !more)) {
-			if (msg_data_left(msg) == 0 && !more) {
-				txb->wire.flags |= RXRPC_LAST_PACKET;
-				__set_bit(RXRPC_TXBUF_LAST, &txb->flags);
-			}
+			if (msg_data_left(msg) == 0 && !more)
+				txb->flags |= RXRPC_LAST_PACKET;
 			else if (call->tx_top - call->acks_hard_ack <
 				 call->tx_winsize)
-				txb->wire.flags |= RXRPC_MORE_PACKETS;
+				txb->flags |= RXRPC_MORE_PACKETS;
 
 			ret = call->security->secure_packet(call, txb);
 			if (ret < 0)
 				goto out;
 
+			txb->kvec[0].iov_len += txb->len;
+			txb->len = txb->kvec[0].iov_len;
 			rxrpc_queue_packet(rx, call, txb, notify_end_tx);
 			txb = NULL;
 		}
@@ -621,7 +609,6 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	__releases(&rx->sk.sk_lock.slock)
 {
 	struct rxrpc_call *call;
-	unsigned long now, j;
 	bool dropped_lock = false;
 	int ret;
 
@@ -699,25 +686,21 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 
 	switch (p.call.nr_timeouts) {
 	case 3:
-		j = msecs_to_jiffies(p.call.timeouts.normal);
-		if (p.call.timeouts.normal > 0 && j == 0)
-			j = 1;
-		WRITE_ONCE(call->next_rx_timo, j);
+		WRITE_ONCE(call->next_rx_timo, p.call.timeouts.normal);
 		fallthrough;
 	case 2:
-		j = msecs_to_jiffies(p.call.timeouts.idle);
-		if (p.call.timeouts.idle > 0 && j == 0)
-			j = 1;
-		WRITE_ONCE(call->next_req_timo, j);
+		WRITE_ONCE(call->next_req_timo, p.call.timeouts.idle);
 		fallthrough;
 	case 1:
 		if (p.call.timeouts.hard > 0) {
-			j = p.call.timeouts.hard * HZ;
-			now = jiffies;
-			j += now;
-			WRITE_ONCE(call->expect_term_by, j);
-			rxrpc_reduce_call_timer(call, j, now,
-						rxrpc_timer_set_for_hard);
+			ktime_t delay = ms_to_ktime(p.call.timeouts.hard * MSEC_PER_SEC);
+
+			WRITE_ONCE(call->expect_term_by,
+				   ktime_add(p.call.timeouts.hard,
+					     ktime_get_real()));
+			trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_hard);
+			rxrpc_poke_call(call, rxrpc_call_poke_set_timeout);
+
 		}
 		break;
 	}
