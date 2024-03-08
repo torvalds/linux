@@ -96,6 +96,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(6, 0, 2):
 	case IP_VERSION(6, 0, 3):
 	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 1, 1):
 		kfd->device_info.num_sdma_queues_per_engine = 8;
 		break;
 	default:
@@ -113,6 +114,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(6, 0, 2):
 	case IP_VERSION(6, 0, 3):
 	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 1, 1):
 		/* Reserve 1 for paging and 1 for gfx */
 		kfd->device_info.num_reserved_sdma_queues_per_engine = 2;
 		/* BIT(0)=engine-0 queue-0; BIT(1)=engine-1 queue-0; BIT(2)=engine-0 queue-1; ... */
@@ -165,6 +167,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(11, 0, 3):
 	case IP_VERSION(11, 0, 4):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 1):
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
 		break;
 	default:
@@ -418,6 +421,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		case IP_VERSION(11, 5, 0):
 			gfx_target_version = 110500;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 5, 1):
+			gfx_target_version = 110501;
 			f2g = &gfx_v11_kfd2kgd;
 			break;
 		default:

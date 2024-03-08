@@ -243,10 +243,8 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	/* Get UCLK, update bounding box */
 	clk_mgr_base->funcs->get_memclk_states_from_smu(clk_mgr_base);
 
-	DC_FP_START();
 	/* WM range table */
 	dcn32_build_wm_range_table(clk_mgr);
-	DC_FP_END();
 }
 
 static void dcn32_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
@@ -817,7 +815,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		dmcu->funcs->set_psr_wait_loop(dmcu,
 				clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 
-	if (dc->config.enable_auto_dpm_test_logs) {
+	if (dc->config.enable_auto_dpm_test_logs && safe_to_lower) {
 	    dcn32_auto_dpm_test_log(new_clocks, clk_mgr, context);
 	}
 }

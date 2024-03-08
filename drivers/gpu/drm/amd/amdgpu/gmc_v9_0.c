@@ -496,14 +496,14 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 				if (j >= AMDGPU_MMHUB0(0))
 					tmp = RREG32_SOC15_IP(MMHUB, reg);
 				else
-					tmp = RREG32_SOC15_IP(GC, reg);
+					tmp = RREG32_XCC(reg, j);
 
 				tmp &= ~bits;
 
 				if (j >= AMDGPU_MMHUB0(0))
 					WREG32_SOC15_IP(MMHUB, reg, tmp);
 				else
-					WREG32_SOC15_IP(GC, reg, tmp);
+					WREG32_XCC(reg, tmp, j);
 			}
 		}
 		break;
@@ -524,14 +524,14 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 				if (j >= AMDGPU_MMHUB0(0))
 					tmp = RREG32_SOC15_IP(MMHUB, reg);
 				else
-					tmp = RREG32_SOC15_IP(GC, reg);
+					tmp = RREG32_XCC(reg, j);
 
 				tmp |= bits;
 
 				if (j >= AMDGPU_MMHUB0(0))
 					WREG32_SOC15_IP(MMHUB, reg, tmp);
 				else
-					WREG32_SOC15_IP(GC, reg, tmp);
+					WREG32_XCC(reg, tmp, j);
 			}
 		}
 		break;
