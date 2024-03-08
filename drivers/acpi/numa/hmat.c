@@ -59,9 +59,7 @@ struct target_cache {
 };
 
 enum {
-	NODE_ACCESS_CLASS_0 = 0,
-	NODE_ACCESS_CLASS_1,
-	NODE_ACCESS_CLASS_GENPORT_SINK,
+	NODE_ACCESS_CLASS_GENPORT_SINK = ACCESS_COORDINATE_MAX,
 	NODE_ACCESS_CLASS_MAX,
 };
 
@@ -374,11 +372,11 @@ static __init void hmat_update_target(unsigned int tgt_pxm, unsigned int init_px
 
 	if (target && target->processor_pxm == init_pxm) {
 		hmat_update_target_access(target, type, value,
-					  NODE_ACCESS_CLASS_0);
+					  ACCESS_COORDINATE_LOCAL);
 		/* If the node has a CPU, update access 1 */
 		if (node_state(pxm_to_node(init_pxm), N_CPU))
 			hmat_update_target_access(target, type, value,
-						  NODE_ACCESS_CLASS_1);
+						  ACCESS_COORDINATE_CPU);
 	}
 }
 
@@ -709,7 +707,8 @@ static void hmat_update_target_attrs(struct memory_target *target,
 	 */
 	if (target->processor_pxm != PXM_INVAL) {
 		cpu_nid = pxm_to_node(target->processor_pxm);
-		if (access == 0 || node_state(cpu_nid, N_CPU)) {
+		if (access == ACCESS_COORDINATE_LOCAL ||
+		    node_state(cpu_nid, N_CPU)) {
 			set_bit(target->processor_pxm, p_nodes);
 			return;
 		}
@@ -737,7 +736,8 @@ static void hmat_update_target_attrs(struct memory_target *target,
 		list_for_each_entry(initiator, &initiators, node) {
 			u32 value;
 
-			if (access == 1 && !initiator->has_cpu) {
+			if (access == ACCESS_COORDINATE_CPU &&
+			    !initiator->has_cpu) {
 				clear_bit(initiator->processor_pxm, p_nodes);
 				continue;
 			}
@@ -782,8 +782,10 @@ static void hmat_register_target_initiators(struct memory_target *target)
 {
 	static DECLARE_BITMAP(p_nodes, MAX_NUMNODES);
 
-	__hmat_register_target_initiators(target, p_nodes, 0);
-	__hmat_register_target_initiators(target, p_nodes, 1);
+	__hmat_register_target_initiators(target, p_nodes,
+					  ACCESS_COORDINATE_LOCAL);
+	__hmat_register_target_initiators(target, p_nodes,
+					  ACCESS_COORDINATE_CPU);
 }
 
 static void hmat_register_target_cache(struct memory_target *target)
@@ -854,8 +856,8 @@ static void hmat_register_target(struct memory_target *target)
 	if (!target->registered) {
 		hmat_register_target_initiators(target);
 		hmat_register_target_cache(target);
-		hmat_register_target_perf(target, NODE_ACCESS_CLASS_0);
-		hmat_register_target_perf(target, NODE_ACCESS_CLASS_1);
+		hmat_register_target_perf(target, ACCESS_COORDINATE_LOCAL);
+		hmat_register_target_perf(target, ACCESS_COORDINATE_CPU);
 		target->registered = true;
 	}
 	mutex_unlock(&target_lock);
@@ -927,7 +929,7 @@ static int hmat_calculate_adistance(struct notifier_block *self,
 		return NOTIFY_OK;
 
 	mutex_lock(&target_lock);
-	hmat_update_target_attrs(target, p_nodes, 1);
+	hmat_update_target_attrs(target, p_nodes, ACCESS_COORDINATE_CPU);
 	mutex_unlock(&target_lock);
 
 	perf = &target->coord[1];
