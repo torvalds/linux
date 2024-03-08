@@ -407,6 +407,7 @@ static int call_nexthop_res_table_notifiers(struct net *net, struct nexthop *nh,
 	struct nh_notifier_info info = {
 		.net = net,
 		.extack = extack,
+		.id = nh->id,
 	};
 	struct nh_group *nhg;
 	int err;
