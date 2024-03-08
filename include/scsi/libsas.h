@@ -726,4 +726,33 @@ void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			   gfp_t gfp_flags);
 
+#define __LIBSAS_SHT_BASE						\
+	.module				= THIS_MODULE,			\
+	.name				= DRV_NAME,			\
+	.proc_name			= DRV_NAME,			\
+	.queuecommand			= sas_queuecommand,		\
+	.dma_need_drain			= ata_scsi_dma_need_drain,	\
+	.target_alloc			= sas_target_alloc,		\
+	.change_queue_depth		= sas_change_queue_depth,	\
+	.bios_param			= sas_bios_param,		\
+	.this_id			= -1,				\
+	.eh_device_reset_handler	= sas_eh_device_reset_handler,	\
+	.eh_target_reset_handler	= sas_eh_target_reset_handler,	\
+	.target_destroy			= sas_target_destroy,		\
+	.ioctl				= sas_ioctl,			\
+
+#ifdef CONFIG_COMPAT
+#define _LIBSAS_SHT_BASE		__LIBSAS_SHT_BASE		\
+	.compat_ioctl			= sas_ioctl,
+#else
+#define _LIBSAS_SHT_BASE		__LIBSAS_SHT_BASE
+#endif
+
+#define LIBSAS_SHT_BASE			_LIBSAS_SHT_BASE		\
+	.slave_configure		= sas_slave_configure,		\
+	.slave_alloc			= sas_slave_alloc,		\
+
+#define LIBSAS_SHT_BASE_NO_SLAVE_INIT	_LIBSAS_SHT_BASE
+
+
 #endif /* _SASLIB_H_ */
