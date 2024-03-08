@@ -2189,13 +2189,12 @@ int amdgpu_amdkfd_gpuvm_sync_memory(
 
 /**
  * amdgpu_amdkfd_map_gtt_bo_to_gart - Map BO to GART and increment reference count
- * @adev: Device to which allocated BO belongs
  * @bo: Buffer object to be mapped
  *
  * Before return, bo reference count is incremented. To release the reference and unpin/
  * unmap the BO, call amdgpu_amdkfd_free_gtt_mem.
  */
-int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_device *adev, struct amdgpu_bo *bo)
+int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo)
 {
 	int ret;
 

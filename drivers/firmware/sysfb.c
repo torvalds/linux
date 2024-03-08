@@ -127,8 +127,10 @@ static __init int sysfb_init(void)
 	sysfb_apply_efi_quirks();
 
 	parent = sysfb_parent_dev(si);
-	if (IS_ERR(parent))
+	if (IS_ERR(parent)) {
+		ret = PTR_ERR(parent);
 		goto unlock_mutex;
+	}
 
 	/* try to create a simple-framebuffer device */
 	compatible = sysfb_parse_mode(si, &mode);

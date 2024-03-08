@@ -242,7 +242,8 @@ void intel_bios_init_panel_late(struct drm_i915_private *dev_priv,
 				const struct drm_edid *drm_edid);
 void intel_bios_fini_panel(struct intel_panel *panel);
 void intel_bios_driver_remove(struct drm_i915_private *dev_priv);
-bool intel_bios_is_valid_vbt(const void *buf, size_t size);
+bool intel_bios_is_valid_vbt(struct drm_i915_private *i915,
+			     const void *buf, size_t size);
 bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
 bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
 bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port port);

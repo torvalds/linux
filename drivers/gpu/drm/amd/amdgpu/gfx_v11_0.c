@@ -89,6 +89,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_0_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_11_0[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL, 0x20000000, 0x20000000)
@@ -907,6 +911,7 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 4):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 1):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -1329,7 +1334,7 @@ static int gfx_v11_0_rlc_backdoor_autoload_enable(struct amdgpu_device *adev)
 static int gfx_v11_0_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id = 0;
-	struct amdgpu_kiq *kiq;
+	int xcc_id = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
@@ -1346,6 +1351,7 @@ static int gfx_v11_0_sw_init(void *handle)
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 4):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 1):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
@@ -1454,8 +1460,7 @@ static int gfx_v11_0_sw_init(void *handle)
 			return r;
 		}
 
-		kiq = &adev->gfx.kiq[0];
-		r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq, 0);
+		r = amdgpu_gfx_kiq_init_ring(adev, xcc_id);
 		if (r)
 			return r;
 	}
@@ -2588,7 +2593,8 @@ static int gfx_v11_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 			    IP_VERSION(11, 0, 1) ||
 		    amdgpu_ip_version(adev, GC_HWIP, 0) ==
 			    IP_VERSION(11, 0, 4) ||
-		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 5, 0))
+		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 5, 0) ||
+		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 5, 1))
 			bootload_status = RREG32_SOC15(GC, 0,
 					regRLC_RLCS_BOOTLOAD_STATUS_gc_11_0_1);
 		else
@@ -5082,6 +5088,7 @@ static void gfx_v11_cntl_power_gating(struct amdgpu_device *adev, bool enable)
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 4):
 		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 5, 1):
 			WREG32_SOC15(GC, 0, regRLC_PG_DELAY_3, RLC_PG_DELAY_3_DEFAULT_GC_11_0_1);
 			break;
 		default:
@@ -5117,6 +5124,7 @@ static int gfx_v11_0_set_powergating_state(void *handle,
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 4):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 1):
 		if (!enable)
 			amdgpu_gfx_off_ctrl(adev, false);
 
@@ -5148,6 +5156,7 @@ static int gfx_v11_0_set_clockgating_state(void *handle,
 	case IP_VERSION(11, 0, 3):
 	case IP_VERSION(11, 0, 4):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 1):
 	        gfx_v11_0_update_gfx_clock_gating(adev,
 	                        state ==  AMD_CG_STATE_GATE);
 	        break;

@@ -132,7 +132,7 @@ int dce_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 	int dprefclk_wdivider;
 	int dprefclk_src_sel;
 	int dp_ref_clk_khz;
-	int target_div;
+	int target_div = 600000;
 
 	/* ASSERT DP Reference Clock source is from DFS*/
 	REG_GET(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, &dprefclk_src_sel);

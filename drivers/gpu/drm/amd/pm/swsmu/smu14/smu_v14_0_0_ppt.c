@@ -261,7 +261,10 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->MpipuclkFrequency;
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = metrics->GfxActivity / 100;
+		if ((smu->smc_fw_version > 0x5d4600))
+			*value = metrics->GfxActivity;
+		else
+			*value = metrics->GfxActivity / 100;
 		break;
 	case METRICS_AVERAGE_VCNACTIVITY:
 		*value = metrics->VcnActivity / 100;

@@ -206,8 +206,6 @@ struct intel_guc {
 	u32 ads_golden_ctxt_size;
 	/** @ads_capture_size: size of register lists in the ADS used for error capture */
 	u32 ads_capture_size;
-	/** @ads_engine_usage_size: size of engine usage in the ADS */
-	u32 ads_engine_usage_size;
 
 	/** @lrc_desc_pool_v69: object allocated to hold the GuC LRC descriptor pool */
 	struct i915_vma *lrc_desc_pool_v69;

@@ -1732,8 +1732,8 @@ int intel_hdmi_hdcp2_check_link(struct intel_digital_port *dig_port,
 }
 
 static
-int intel_hdmi_hdcp2_capable(struct intel_connector *connector,
-			     bool *capable)
+int intel_hdmi_hdcp2_get_capability(struct intel_connector *connector,
+				    bool *capable)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	u8 hdcp2_version;
@@ -1762,7 +1762,7 @@ static const struct intel_hdcp_shim intel_hdmi_hdcp_shim = {
 	.write_2_2_msg = intel_hdmi_hdcp2_write_msg,
 	.read_2_2_msg = intel_hdmi_hdcp2_read_msg,
 	.check_2_2_link	= intel_hdmi_hdcp2_check_link,
-	.hdcp_2_2_capable = intel_hdmi_hdcp2_capable,
+	.hdcp_2_2_get_capability = intel_hdmi_hdcp2_get_capability,
 	.protocol = HDCP_PROTOCOL_HDMI,
 };
 
