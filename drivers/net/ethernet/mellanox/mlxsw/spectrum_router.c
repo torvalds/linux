@@ -19,6 +19,7 @@
 #include <linux/net_namespace.h>
 #include <linux/mutex.h>
 #include <linux/genalloc.h>
+#include <linux/xarray.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -3111,6 +3112,7 @@ struct mlxsw_sp_nexthop_group_info {
 	   is_resilient:1,
 	   hw_stats:1;
 	struct list_head list; /* member in nh_res_grp_list */
+	struct xarray nexthop_counters;
 	struct mlxsw_sp_nexthop nexthops[] __counted_by(count);
 };
 
@@ -3156,6 +3158,7 @@ struct mlxsw_sp_nexthop_group {
 
 struct mlxsw_sp_nexthop_counter {
 	unsigned int counter_index;
+	refcount_t ref_count;
 };
 
 static struct mlxsw_sp_nexthop_counter *
@@ -3172,6 +3175,7 @@ mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_counter_alloc;
 
+	refcount_set(&nhct->ref_count, 1);
 	return nhct;
 
 err_counter_alloc:
@@ -3185,6 +3189,56 @@ mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp_flow_counter_free(mlxsw_sp, nhct->counter_index);
 	kfree(nhct);
+}
+
+static struct mlxsw_sp_nexthop_counter *
+mlxsw_sp_nexthop_sh_counter_get(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_nexthop *nh)
+{
+	struct mlxsw_sp_nexthop_group *nh_grp = nh->nhgi->nh_grp;
+	struct mlxsw_sp_nexthop_counter *nhct;
+	void *ptr;
+	int err;
+
+	nhct = xa_load(&nh_grp->nhgi->nexthop_counters, nh->id);
+	if (nhct) {
+		refcount_inc(&nhct->ref_count);
+		return nhct;
+	}
+
+	nhct = mlxsw_sp_nexthop_counter_alloc(mlxsw_sp);
+	if (IS_ERR(nhct))
+		return nhct;
+
+	ptr = xa_store(&nh_grp->nhgi->nexthop_counters, nh->id, nhct,
+		       GFP_KERNEL);
+	if (IS_ERR(ptr)) {
+		err = PTR_ERR(ptr);
+		goto err_store;
+	}
+
+	return nhct;
+
+err_store:
+	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nhct);
+	return ERR_PTR(err);
+}
+
+static void mlxsw_sp_nexthop_sh_counter_put(struct mlxsw_sp *mlxsw_sp,
+					    struct mlxsw_sp_nexthop *nh)
+{
+	struct mlxsw_sp_nexthop_group *nh_grp = nh->nhgi->nh_grp;
+	struct mlxsw_sp_nexthop_counter *nhct;
+
+	nhct = xa_load(&nh_grp->nhgi->nexthop_counters, nh->id);
+	if (WARN_ON(!nhct))
+		return;
+
+	if (!refcount_dec_and_test(&nhct->ref_count))
+		return;
+
+	xa_erase(&nh_grp->nhgi->nexthop_counters, nh->id);
+	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nhct);
 }
 
 int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
@@ -3203,7 +3257,10 @@ int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
 	if (!(nh->nhgi->hw_stats || dpipe_stats))
 		return 0;
 
-	nhct = mlxsw_sp_nexthop_counter_alloc(mlxsw_sp);
+	if (nh->id)
+		nhct = mlxsw_sp_nexthop_sh_counter_get(mlxsw_sp, nh);
+	else
+		nhct = mlxsw_sp_nexthop_counter_alloc(mlxsw_sp);
 	if (IS_ERR(nhct))
 		return PTR_ERR(nhct);
 
@@ -3216,7 +3273,11 @@ void mlxsw_sp_nexthop_counter_disable(struct mlxsw_sp *mlxsw_sp,
 {
 	if (!nh->counter)
 		return;
-	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh->counter);
+
+	if (nh->id)
+		mlxsw_sp_nexthop_sh_counter_put(mlxsw_sp, nh);
+	else
+		mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh->counter);
 	nh->counter = NULL;
 }
 
@@ -5145,6 +5206,9 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 	nhgi->is_resilient = is_resilient;
 	nhgi->count = nhs;
 	nhgi->hw_stats = hw_stats;
+
+	xa_init_flags(&nhgi->nexthop_counters, XA_FLAGS_ALLOC1);
+
 	for (i = 0; i < nhgi->count; i++) {
 		struct nh_notifier_single_info *nh_obj;
 		int weight;
@@ -5227,6 +5291,8 @@ mlxsw_sp_nexthop_obj_group_info_fini(struct mlxsw_sp *mlxsw_sp,
 	}
 	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh_grp);
 	WARN_ON_ONCE(nhgi->adj_index_valid);
+	WARN_ON(!xa_empty(&nhgi->nexthop_counters));
+	xa_destroy(&nhgi->nexthop_counters);
 	kfree(nhgi);
 }
 
