@@ -129,6 +129,46 @@
 			pinctrl-0 = <&uart1_pins>;
 		};
 
+		serial1: serial@d00 {
+			compatible = "ns16550a";
+			reg = <0xd00 0x100>;
+
+			reg-io-width = <4>;
+			reg-shift = <2>;
+
+			clocks = <&sysc MT7621_CLK_UART2>;
+
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 27 IRQ_TYPE_LEVEL_HIGH>;
+
+			no-loopback-test;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2_pins>;
+
+			status = "disabled";
+		};
+
+		serial2: serial@e00 {
+			compatible = "ns16550a";
+			reg = <0xe00 0x100>;
+
+			reg-io-width = <4>;
+			reg-shift = <2>;
+
+			clocks = <&sysc MT7621_CLK_UART3>;
+
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 28 IRQ_TYPE_LEVEL_HIGH>;
+
+			no-loopback-test;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart3_pins>;
+
+			status = "disabled";
+		};
+
 		spi0: spi@b00 {
 			status = "disabled";
 
