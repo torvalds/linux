@@ -54,6 +54,8 @@ ns1=""
 ns2=""
 ret=0
 test_name=""
+# a bit more space: because we have more to display
+MPTCP_LIB_TEST_FORMAT="%02u %-68s"
 
 _printf() {
 	stdbuf -o0 -e0 printf "${@}"
@@ -69,7 +71,7 @@ print_test()
 {
 	test_name="${1}"
 
-	_printf "%-68s" "${test_name}"
+	mptcp_lib_print_title "${test_name}"
 }
 
 print_results()

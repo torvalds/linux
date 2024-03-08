@@ -115,7 +115,7 @@ check_mark()
 
 print_title()
 {
-	printf "%-50s" "${@}"
+	mptcp_lib_print_title "${@}"
 }
 
 do_transfer()

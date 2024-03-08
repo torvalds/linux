@@ -249,7 +249,8 @@ fi
 
 print_larger_title() {
 	# here we don't have the time, a bit longer for the alignment
-	printf "%-69s" "${@}"
+	MPTCP_LIB_TEST_FORMAT="%02u %-69s" \
+		mptcp_lib_print_title "${@}"
 }
 
 check_mptcp_disabled()
@@ -320,7 +321,6 @@ do_transfer()
 	local extra_args="$7"
 
 	port=$((port + 1))
-	MPTCP_LIB_TEST_COUNTER=$((MPTCP_LIB_TEST_COUNTER+1))
 
 	if [ "$rcvbuf" -gt 0 ]; then
 		extra_args="$extra_args -R $rcvbuf"
@@ -347,7 +347,7 @@ do_transfer()
 	addr_port=$(printf "%s:%d" ${connect_addr} ${port})
 	local result_msg
 	result_msg="$(printf "%.3s %-5s -> %.3s (%-20s) %-5s" ${connector_ns} ${cl_proto} ${listener_ns} ${addr_port} ${srv_proto})"
-	printf "%-50s" "${result_msg}"
+	mptcp_lib_print_title "${result_msg}"
 
 	if $capture; then
 		local capuser
