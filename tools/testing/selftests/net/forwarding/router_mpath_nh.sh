@@ -7,9 +7,12 @@ ALL_TESTS="
 	multipath_test
 	ping_ipv4_blackhole
 	ping_ipv6_blackhole
+	nh_stats_test_v4
+	nh_stats_test_v6
 "
 NUM_NETIFS=8
 source lib.sh
+source router_mpath_nh_lib.sh
 
 h1_create()
 {
@@ -323,6 +326,16 @@ ping_ipv6_blackhole()
 
 	ip nexthop del id 1002
 	ip -6 nexthop del id 1001
+}
+
+nh_stats_test_v4()
+{
+	__nh_stats_test_v4 mpath
+}
+
+nh_stats_test_v6()
+{
+	__nh_stats_test_v6 mpath
 }
 
 setup_prepare()
