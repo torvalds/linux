@@ -271,6 +271,11 @@ properties:
                   exact-len:
                     description: Exact length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
+                  unterminated-ok:
+                    description: |
+                      For string attributes, do not check whether attribute
+                      contains the terminating null character.
+                    type: boolean
               sub-type: *attr-type
               display-hint: *display-hint
               # Start genetlink-c
