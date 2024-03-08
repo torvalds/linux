@@ -2316,15 +2316,17 @@ static int q2spi_release(struct inode *inode, struct file *filp)
 	q2spi_flush_pending_crs(q2spi);
 	q2spi->doorbell_setup = false;
 	q2spi_geni_resources_off(q2spi);
+
 	q2spi_tx_queue_status(q2spi);
 	atomic_set(&q2spi->doorbell_pending, 0);
+	ret = pm_runtime_put_sync_suspend(q2spi->dev);
+	Q2SPI_DEBUG(q2spi, "%s PM put sync suspend ret:%d\n", __func__, ret);
 
-	pm_runtime_mark_last_busy(q2spi->dev);
-	Q2SPI_DEBUG(q2spi, "%s PM put_autosuspend count:%d line:%d\n", __func__,
-		    atomic_read(&q2spi->dev->power.usage_count), __LINE__);
-	pm_runtime_put_autosuspend(q2spi->dev);
-	Q2SPI_DEBUG(q2spi, "%s PM after put_autosuspend count:%d\n", __func__,
-		    atomic_read(&q2spi->dev->power.usage_count));
+	ret = pinctrl_select_state(q2spi->geni_pinctrl, q2spi->geni_gpio_shutdown);
+	if (ret) {
+		Q2SPI_ERROR(q2spi, "%s: Err failed to pinctrl state to gpio, ret:%d\n",
+			    __func__, ret);
+	}
 
 	Q2SPI_DEBUG(q2spi, "%s End allocs:%d\n", __func__, atomic_read(&q2spi->alloc_count));
 	return 0;
@@ -3120,9 +3122,16 @@ static int q2spi_get_icc_pinctrl(struct platform_device *pdev,
 		goto get_icc_pinctrl_err;
 	}
 
-	q2spi->geni_gpio_active = pinctrl_lookup_state(q2spi->geni_pinctrl, PINCTRL_DEFAULT);
-	if (IS_ERR_OR_NULL(q2spi->geni_gpio_active)) {
+	q2spi->geni_gpio_default = pinctrl_lookup_state(q2spi->geni_pinctrl, PINCTRL_DEFAULT);
+	if (IS_ERR_OR_NULL(q2spi->geni_gpio_default)) {
 		Q2SPI_DEBUG(q2spi, "No default config specified!\n");
+		ret = PTR_ERR(q2spi->geni_gpio_default);
+		goto get_icc_pinctrl_err;
+	}
+
+	q2spi->geni_gpio_active = pinctrl_lookup_state(q2spi->geni_pinctrl, PINCTRL_ACTIVE);
+	if (IS_ERR_OR_NULL(q2spi->geni_gpio_active)) {
+		Q2SPI_DEBUG(q2spi, "No active config specified!\n");
 		ret = PTR_ERR(q2spi->geni_gpio_active);
 		goto get_icc_pinctrl_err;
 	}
@@ -3131,6 +3140,13 @@ static int q2spi_get_icc_pinctrl(struct platform_device *pdev,
 	if (IS_ERR_OR_NULL(q2spi->geni_gpio_sleep)) {
 		Q2SPI_DEBUG(q2spi, "No sleep config specified!\n");
 		ret = PTR_ERR(q2spi->geni_gpio_sleep);
+		goto get_icc_pinctrl_err;
+	}
+
+	q2spi->geni_gpio_shutdown = pinctrl_lookup_state(q2spi->geni_pinctrl, PINCTRL_SHUTDOWN);
+	if (IS_ERR_OR_NULL(q2spi->geni_gpio_shutdown)) {
+		Q2SPI_DEBUG(q2spi, "No shutdown config specified!\n");
+		ret = PTR_ERR(q2spi->geni_gpio_shutdown);
 		goto get_icc_pinctrl_err;
 	}
 
@@ -4041,6 +4057,13 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	if (q2spi_sleep_config(q2spi, pdev))
 		goto free_buf;
 
+	ret = pinctrl_select_state(q2spi->geni_pinctrl, q2spi->geni_gpio_default);
+	if (ret) {
+		Q2SPI_ERROR(q2spi, "%s: Err failed to pinctrl state to gpio, ret:%d\n",
+			    __func__, ret);
+		goto free_buf;
+	}
+
 	Q2SPI_INFO(q2spi, "%s Q2SPI GENI SE Driver probed ck\n", __func__);
 	pr_info("boot_kpi: M - DRIVER GENI_Q2SPI Ready\n");
 	return 0;
@@ -4128,7 +4151,7 @@ int q2spi_wakeup_hw_through_gpio(struct q2spi_geni *q2spi)
 	Q2SPI_DEBUG(q2spi, "%s Sending disconnect doorbell only\n", __func__);
 	geni_gsi_disconnect_doorbell_stop_ch(q2spi->gsi->tx_c, false);
 
-	ret = pinctrl_select_state(q2spi->geni_pinctrl, q2spi->geni_gpio_sleep);
+	ret = pinctrl_select_state(q2spi->geni_pinctrl, q2spi->geni_gpio_default);
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "%s: Err failed to pinctrl state to gpio, ret:%d\n",
 			    __func__, ret);

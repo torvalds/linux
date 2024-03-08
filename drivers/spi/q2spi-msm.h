@@ -162,9 +162,10 @@
 
 #define Q2SPI_HRF_SLEEP_CMD		0x100
 #define Q2SPI_AUTOSUSPEND_DELAY		(XFER_TIMEOUT_OFFSET + 3000) /* 5 secs */
-#define PINCTRL_DEFAULT "default"
-#define PINCTRL_ACTIVE  "active"
-#define PINCTRL_SLEEP   "sleep"
+#define PINCTRL_DEFAULT		"default"
+#define PINCTRL_ACTIVE		"active"
+#define PINCTRL_SLEEP		"sleep"
+#define PINCTRL_SHUTDOWN	"shutdown"
 
 /* Max Minor devices */
 #define MAX_DEV				2
@@ -419,8 +420,10 @@ struct q2spi_dma_transfer {
  * @s_ahb_clk: slave ahb clock for the controller
  * @se_clk: serial engine clock
  * @geni_pinctrl: pin-controller's instance
+ * @geni_gpio_default: default state pin control
  * @geni_gpio_active: active state pin control
  * @geni_gpio_sleep: sleep state pin control
+ * @geni_gpio_shutdown: shutdown state pin control
  * q2spi_chrdev: cdev structure
  * @geni_se: stores info parsed from device tree
  * @gsi: stores GSI structure information
@@ -497,8 +500,10 @@ struct q2spi_geni {
 	struct clk *s_ahb_clk;
 	struct clk *se_clk;
 	struct pinctrl *geni_pinctrl;
+	struct pinctrl_state *geni_gpio_default;
 	struct pinctrl_state *geni_gpio_active;
 	struct pinctrl_state *geni_gpio_sleep;
+	struct pinctrl_state *geni_gpio_shutdown;
 	struct q2spi_chrdev chrdev;
 	struct geni_se se;
 	struct q2spi_gsi *gsi;
