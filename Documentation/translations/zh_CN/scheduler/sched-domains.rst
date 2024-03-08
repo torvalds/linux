@@ -36,7 +36,7 @@ CPU共享。任意两个组的CPU掩码的交集不一定为空，如果是这�
 
 在kernel/sched/core.c中，sched_balance_trigger()在每个CPU上通过sched_tick()
 周期执行。在当前运行队列下一个定期调度再平衡事件到达后，它引发一个软中断。负载均衡真正
-的工作由sched_balance_softirq()->rebalance_domains()完成，在软中断上下文中执行
+的工作由sched_balance_softirq()->sched_balance_domains()完成，在软中断上下文中执行
 （SCHED_SOFTIRQ）。
 
 后一个函数有两个入参：当前CPU的运行队列、它在sched_tick()调用时是否空闲。函数会从
