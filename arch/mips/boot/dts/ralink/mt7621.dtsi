@@ -307,6 +307,9 @@
 		       0x1e1d0700 0x0100>;
 		reg-names = "mac", "ippc";
 
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		clocks = <&sysc MT7621_CLK_XTAL>;
 		clock-names = "sys_ck";
 
