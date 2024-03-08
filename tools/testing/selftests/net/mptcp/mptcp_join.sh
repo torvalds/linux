@@ -2794,15 +2794,9 @@ AF_INET6=10
 
 verify_listener_events()
 {
-	local evt=$1
 	local e_type=$2
-	local e_family=$3
 	local e_saddr=$4
 	local e_sport=$5
-	local type
-	local family
-	local saddr
-	local sport
 	local name
 
 	if [ $e_type = $LISTENER_CREATED ]; then
@@ -2820,23 +2814,10 @@ verify_listener_events()
 		return
 	fi
 
-	type=$(mptcp_lib_evts_get_info type "$evt" "$e_type")
-	family=$(mptcp_lib_evts_get_info family "$evt" "$e_type")
-	sport=$(mptcp_lib_evts_get_info sport "$evt" "$e_type")
-	if [ $family ] && [ $family = $AF_INET6 ]; then
-		saddr=$(mptcp_lib_evts_get_info saddr6 "$evt" "$e_type")
-	else
-		saddr=$(mptcp_lib_evts_get_info saddr4 "$evt" "$e_type")
-	fi
-
-	if [ $type ] && [ $type = $e_type ] &&
-	   [ $family ] && [ $family = $e_family ] &&
-	   [ $saddr ] && [ $saddr = $e_saddr ] &&
-	   [ $sport ] && [ $sport = $e_sport ]; then
+	if mptcp_lib_verify_listener_events "${@}"; then
 		print_ok
 		return 0
 	fi
-	print_fail "$e_type:$type $e_family:$family $e_saddr:$saddr $e_sport:$sport"
 	fail_test
 }
 

@@ -468,3 +468,29 @@ mptcp_lib_check_expected() {
 
 	return "${rc}"
 }
+
+# shellcheck disable=SC2034 # Some variables are used below but indirectly
+mptcp_lib_verify_listener_events() {
+	local evt=${1}
+	local e_type=${2}
+	local e_family=${3}
+	local e_saddr=${4}
+	local e_sport=${5}
+	local type
+	local family
+	local saddr
+	local sport
+	local rc=0
+
+	type=$(mptcp_lib_evts_get_info type "${evt}" "${e_type}")
+	family=$(mptcp_lib_evts_get_info family "${evt}" "${e_type}")
+	if [ "${family}" ] && [ "${family}" = "${AF_INET6}" ]; then
+		saddr=$(mptcp_lib_evts_get_info saddr6 "${evt}" "${e_type}")
+	else
+		saddr=$(mptcp_lib_evts_get_info saddr4 "${evt}" "${e_type}")
+	fi
+	sport=$(mptcp_lib_evts_get_info sport "${evt}" "${e_type}")
+
+	mptcp_lib_check_expected "type" "family" "saddr" "sport" || rc="${?}"
+	return "${rc}"
+}
