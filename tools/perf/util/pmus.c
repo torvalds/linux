@@ -16,6 +16,7 @@
 #include "pmus.h"
 #include "pmu.h"
 #include "print-events.h"
+#include "strbuf.h"
 
 /*
  * core_pmus:  A PMU belongs to core_pmus if it's name is "cpu" or it's sysfs
@@ -501,6 +502,99 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 		printf("\n");
 
 	zfree(&aliases);
+}
+
+struct build_format_string_args {
+	struct strbuf short_string;
+	struct strbuf long_string;
+	int num_formats;
+};
+
+static int build_format_string(void *state, const char *name, int config,
+			       const unsigned long *bits)
+{
+	struct build_format_string_args *args = state;
+	unsigned int num_bits;
+	int ret1, ret2 = 0;
+
+	(void)config;
+	args->num_formats++;
+	if (args->num_formats > 1) {
+		strbuf_addch(&args->long_string, ',');
+		if (args->num_formats < 4)
+			strbuf_addch(&args->short_string, ',');
+	}
+	num_bits = bits ? bitmap_weight(bits, PERF_PMU_FORMAT_BITS) : 0;
+	if (num_bits <= 1) {
+		ret1 = strbuf_addf(&args->long_string, "%s", name);
+		if (args->num_formats < 4)
+			ret2 = strbuf_addf(&args->short_string, "%s", name);
+	} else if (num_bits > 8) {
+		ret1 = strbuf_addf(&args->long_string, "%s=0..0x%llx", name,
+				   ULLONG_MAX >> (64 - num_bits));
+		if (args->num_formats < 4) {
+			ret2 = strbuf_addf(&args->short_string, "%s=0..0x%llx", name,
+					   ULLONG_MAX >> (64 - num_bits));
+		}
+	} else {
+		ret1 = strbuf_addf(&args->long_string, "%s=0..%llu", name,
+				  ULLONG_MAX >> (64 - num_bits));
+		if (args->num_formats < 4) {
+			ret2 = strbuf_addf(&args->short_string, "%s=0..%llu", name,
+					   ULLONG_MAX >> (64 - num_bits));
+		}
+	}
+	return ret1 < 0 ? ret1 : (ret2 < 0 ? ret2 : 0);
+}
+
+void perf_pmus__print_raw_pmu_events(const struct print_callbacks *print_cb, void *print_state)
+{
+	bool skip_duplicate_pmus = print_cb->skip_duplicate_pmus(print_state);
+	struct perf_pmu *(*scan_fn)(struct perf_pmu *);
+	struct perf_pmu *pmu = NULL;
+
+	if (skip_duplicate_pmus)
+		scan_fn = perf_pmus__scan_skip_duplicates;
+	else
+		scan_fn = perf_pmus__scan;
+
+	while ((pmu = scan_fn(pmu)) != NULL) {
+		struct build_format_string_args format_args = {
+			.short_string = STRBUF_INIT,
+			.long_string = STRBUF_INIT,
+			.num_formats = 0,
+		};
+		int len = pmu_name_len_no_suffix(pmu->name, /*num=*/NULL);
+		const char *desc = "(see 'man perf-list' or 'man perf-record' on how to encode it)";
+
+		if (!pmu->is_core)
+			desc = NULL;
+
+		strbuf_addf(&format_args.short_string, "%.*s/", len, pmu->name);
+		strbuf_addf(&format_args.long_string, "%.*s/", len, pmu->name);
+		perf_pmu__for_each_format(pmu, &format_args, build_format_string);
+
+		if (format_args.num_formats > 3)
+			strbuf_addf(&format_args.short_string, ",.../modifier");
+		else
+			strbuf_addf(&format_args.short_string, "/modifier");
+
+		strbuf_addf(&format_args.long_string, "/modifier");
+		print_cb->print_event(print_state,
+				/*topic=*/NULL,
+				/*pmu_name=*/NULL,
+				format_args.short_string.buf,
+				/*event_alias=*/NULL,
+				/*scale_unit=*/NULL,
+				/*deprecated=*/false,
+				"Raw event descriptor",
+				desc,
+				/*long_desc=*/NULL,
+				format_args.long_string.buf);
+
+		strbuf_release(&format_args.short_string);
+		strbuf_release(&format_args.long_string);
+	}
 }
 
 bool perf_pmus__have_event(const char *pname, const char *name)
