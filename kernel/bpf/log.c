@@ -458,6 +458,7 @@ const char *reg_type_str(struct bpf_verifier_env *env, enum bpf_reg_type type)
 		[PTR_TO_XDP_SOCK]	= "xdp_sock",
 		[PTR_TO_BTF_ID]		= "ptr_",
 		[PTR_TO_MEM]		= "mem",
+		[PTR_TO_ARENA]		= "arena",
 		[PTR_TO_BUF]		= "buf",
 		[PTR_TO_FUNC]		= "func",
 		[PTR_TO_MAP_KEY]	= "map_key",
@@ -693,6 +694,8 @@ static void print_reg_state(struct bpf_verifier_env *env,
 	}
 
 	verbose(env, "%s", reg_type_str(env, t));
+	if (t == PTR_TO_ARENA)
+		return;
 	if (t == PTR_TO_STACK) {
 		if (state->frameno != reg->frameno)
 			verbose(env, "[%d]", reg->frameno);

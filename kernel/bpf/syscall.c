@@ -4453,6 +4453,12 @@ static struct bpf_insn *bpf_insn_prepare_dump(const struct bpf_prog *prog,
 			continue;
 		}
 
+		if ((BPF_CLASS(code) == BPF_LDX || BPF_CLASS(code) == BPF_STX ||
+		     BPF_CLASS(code) == BPF_ST) && BPF_MODE(code) == BPF_PROBE_MEM32) {
+			insns[i].code = BPF_CLASS(code) | BPF_SIZE(code) | BPF_MEM;
+			continue;
+		}
+
 		if (code != (BPF_LD | BPF_IMM | BPF_DW))
 			continue;
 
