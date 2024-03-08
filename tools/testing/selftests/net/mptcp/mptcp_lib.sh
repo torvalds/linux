@@ -438,3 +438,33 @@ mptcp_lib_print_title() {
 	# shellcheck disable=SC2059 # the format is in a variable
 	printf "${MPTCP_LIB_TEST_FORMAT}" "$((++MPTCP_LIB_TEST_COUNTER))" "${*}"
 }
+
+# $1: var name ; $2: prev ret
+mptcp_lib_check_expected_one() {
+	local var="${1}"
+	local exp="e_${var}"
+	local prev_ret="${2}"
+
+	if [ "${!var}" = "${!exp}" ]; then
+		return 0
+	fi
+
+	if [ "${prev_ret}" = "0" ]; then
+		mptcp_lib_pr_fail
+	fi
+
+	mptcp_lib_print_err "Expected value for '${var}': '${!exp}', got '${!var}'."
+	return 1
+}
+
+# $@: all var names to check
+mptcp_lib_check_expected() {
+	local rc=0
+	local var
+
+	for var in "${@}"; do
+		mptcp_lib_check_expected_one "${var}" "${rc}" || rc=1
+	done
+
+	return "${rc}"
+}
