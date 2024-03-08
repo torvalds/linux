@@ -3151,20 +3151,23 @@ struct mlxsw_sp_nexthop_group {
 	bool can_destroy;
 };
 
-void mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_nexthop *nh)
+int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_nexthop *nh)
 {
 	struct devlink *devlink;
+	int err;
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
 	if (!devlink_dpipe_table_counter_enabled(devlink,
 						 MLXSW_SP_DPIPE_TABLE_NAME_ADJ))
-		return;
+		return 0;
 
-	if (mlxsw_sp_flow_counter_alloc(mlxsw_sp, &nh->counter_index))
-		return;
+	err = mlxsw_sp_flow_counter_alloc(mlxsw_sp, &nh->counter_index);
+	if (err)
+		return err;
 
 	nh->counter_valid = true;
+	return 0;
 }
 
 void mlxsw_sp_nexthop_counter_disable(struct mlxsw_sp *mlxsw_sp,
@@ -4507,7 +4510,10 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
+	err = mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
+	if (err)
+		goto err_counter_enable;
+
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
 
 	if (!dev)
@@ -4532,6 +4538,7 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 err_nexthop_neigh_init:
 	list_del(&nh->router_list_node);
 	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
+err_counter_enable:
 	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 	return err;
 }
@@ -6734,7 +6741,10 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 #if IS_ENABLED(CONFIG_IPV6)
 	nh->neigh_tbl = &nd_tbl;
 #endif
-	mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
+
+	err = mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
+	if (err)
+		return err;
 
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
 
